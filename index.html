@@ -49,6 +49,19 @@
     </div>
   </section>
 
+
+  <!-- NAME SCREEN -->
+  <section id="name-screen" class="screen">
+    <div class="start-inner">
+      <h2 class="title">TU NOMBRE</h2>
+
+      <input type="text" id="player-name-start" maxlength="20" placeholder="ESCRIBE TU NOMBRE" autocomplete="off" />
+
+      <button id="name-ok" class="start-btn" type="button">CONTINUAR</button>
+      <button id="name-back" class="start-btn" type="button">VOLVER</button>
+    </div>
+  </section>
+
   <!-- GAME SCREEN -->
   <section id="game-screen" class="screen">
     <div id="countdown" class="countdown hidden">3</div>
@@ -130,12 +143,9 @@
         </div>
 
         <div class="end-sep"></div>
-
-        <label class="end-label" for="player-name">YOUR NAME</label>
-        <input type="text" id="player-name" maxlength="20" placeholder="TYPE YOUR NAME" autocomplete="off" />
-
-        <button id="submit-score-btn" class="end-primary" type="button">SAVE &amp; VIEW TOP 10</button>
-        <button id="restart-btn" class="end-secondary" type="button">TRY AGAIN?</button>
+        <div class="end-row"><span class="end-k">NOMBRE</span><span id="end-player" class="end-v">ANON</span></div>
+<button id="submit-score-btn" class="end-primary" type="button">GUARDAR &amp; VER TOP 10</button>
+        <button id="restart-btn" class="end-secondary" type="button">¿OTRA VEZ?</button>
 
         <div id="save-status" class="save-status hidden"></div>
       </div>

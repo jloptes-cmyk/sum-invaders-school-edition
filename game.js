@@ -32,9 +32,26 @@ let turnStartMs = 0;
 let turnTimesSec = [];
 let turnsPlayed = 0;
 
+let currentPlayerName = '';
+try { currentPlayerName = (sessionStorage.getItem('si_player_name') || '').trim(); } catch(_) {}
+
+function setPlayerName(name) {
+  const n = String(name || '').trim().toUpperCase();
+  currentPlayerName = n;
+  try {
+    if (n) sessionStorage.setItem('si_player_name', n);
+    else sessionStorage.removeItem('si_player_name');
+  } catch(_) {}
+}
+
+function clearPlayerName() {
+  currentPlayerName = '';
+  try { sessionStorage.removeItem('si_player_name'); } catch(_) {}
+  if (nameInputEl) nameInputEl.value = '';
+}
+
 function getPlayerNameSafe() {
-  const el = document.getElementById('player-name');
-  const name = (el?.value || '').trim();
+  const name = (currentPlayerName || '').trim();
   return name || 'ANON';
 }
 
@@ -282,6 +299,7 @@ function sendProgressScore(levelLabel) {
   const gameScreen = $('#game-screen');
   const gameoverScreen = $('#gameover-screen');
   const leaderboardScreen = $('#leaderboard-screen');
+  const nameScreen = $('#name-screen');
 
   const insertCoinEl = $('#insert-coin');
 
@@ -320,7 +338,7 @@ if (mustCore.some((x) => !x)) {
 }
 
 
-  const allScreens = [startScreen, difficultyScreen, rulesScreen, gameScreen, gameoverScreen, leaderboardScreen].filter(Boolean);
+  const allScreens = [startScreen, difficultyScreen, rulesScreen, gameScreen, gameoverScreen, leaderboardScreen, nameScreen].filter(Boolean);
   function showScreen(el) {
     allScreens.forEach((s) => s.classList.remove('active'));
     el.classList.add('active');
@@ -470,15 +488,52 @@ let lives = 6;     // 0..6 (each wrong answer loses one)
   }
 
   // -------------------------
-  // Countdown with blur + hide game elements
+  // Countdown with blur + PAUSA/CONTINUAR
   // -------------------------
+  let countdownPaused = false;
+  let cdNumEl = null;
+  let cdPauseBtn = null;
+
+  function ensureCountdownUi() {
+    if (!countdownEl) return;
+    if (!cdNumEl) {
+      // Replace countdown content with a number + pause button (Spanish)
+      countdownEl.innerHTML = '<div id="cd-num">3</div><button id="cd-pause-btn" type="button">PAUSA</button>';
+      cdNumEl = document.getElementById('cd-num');
+      cdPauseBtn = document.getElementById('cd-pause-btn');
+      if (cdPauseBtn) {
+        bindSfxClick(cdPauseBtn, 'button');
+        cdPauseBtn.addEventListener('click', () => {
+          countdownPaused = !countdownPaused;
+          cdPauseBtn.textContent = countdownPaused ? 'CONTINUAR' : 'PAUSA';
+        });
+      }
+    }
+  }
+
+  async function sleepPausable(ms) {
+    let remaining = Math.max(0, ms|0);
+    while (remaining > 0) {
+      if (countdownPaused) {
+        await sleep(80);
+        continue;
+      }
+      const step = Math.min(80, remaining);
+      await sleep(step);
+      remaining -= step;
+    }
+  }
+
   async function runCountdown() {
     if (gameUi) gameUi.classList.add('blurred');
+    ensureCountdownUi();
+    countdownPaused = false;
+    if (cdPauseBtn) cdPauseBtn.textContent = 'PAUSA';
     if (countdownEl) countdownEl.classList.remove('hidden');
 
-    if (countdownEl) countdownEl.textContent = '3'; await sleep(COUNTDOWN_STEP_MS);
-    if (countdownEl) countdownEl.textContent = '2'; await sleep(COUNTDOWN_STEP_MS);
-    if (countdownEl) countdownEl.textContent = '1'; await sleep(COUNTDOWN_STEP_MS);
+    if (cdNumEl) cdNumEl.textContent = '3'; await sleepPausable(COUNTDOWN_STEP_MS);
+    if (cdNumEl) cdNumEl.textContent = '2'; await sleepPausable(COUNTDOWN_STEP_MS);
+    if (cdNumEl) cdNumEl.textContent = '1'; await sleepPausable(COUNTDOWN_STEP_MS);
 
     if (countdownEl) countdownEl.classList.add('hidden');
     if (gameUi) gameUi.classList.remove('blurred');
@@ -1006,6 +1061,7 @@ let lives = 6;     // 0..6 (each wrong answer loses one)
   const endBestEl = $('#end-best');
   const endTotalEl = $('#end-total');
   const endTotalMmSsEl = $('#end-total-mmss');
+  const endPlayerEl = $('#end-player');
 
   const finalScoreEl = $('#final-score');          // reused for SCORE value
   const submitScoreBtn = $('#submit-score-btn');
@@ -1013,6 +1069,12 @@ let lives = 6;     // 0..6 (each wrong answer loses one)
   const saveStatusEl = $('#save-status');
   const lbYourScoreEl = $('#lb-your-score');
   const leaderboardAgainBtn = $('#leaderboard-again-btn');
+
+  // NAME SCREEN
+  const nameInputEl = $('#player-name-start');
+  const nameOkBtn = $('#name-ok');
+  const nameBackBtn = $('#name-back');
+
 
   function showSaveStatus(msg) {
     if (!saveStatusEl) return;
@@ -1210,6 +1272,7 @@ async function showLeaderboardAndLoad() {
     if (endTotalMmSsEl) endTotalMmSsEl.textContent = formatTotalMmSs(totalSec);
 
     if (lbYourScoreEl) lbYourScoreEl.textContent = String(score);
+    if (endPlayerEl) endPlayerEl.textContent = getPlayerNameSafe();
   }
 
   function showEndFlow(kind) {
@@ -1223,8 +1286,6 @@ async function showLeaderboardAndLoad() {
     recordTurnNow();
 
     hideSaveStatus();
-    const input = document.getElementById('player-name');
-    if (input) input.value = '';
 
     if (endTitleEl) endTitleEl.textContent = (kind === 'VICTORY') ? 'CONGRATULATIONS' : 'GAME OVER';
     if (endSubtitleEl) {
@@ -1241,8 +1302,7 @@ async function showLeaderboardAndLoad() {
   }
 
   async function saveEndScoreAndGoToScores() {
-    const input = document.getElementById('player-name');
-    const player = ((input?.value || '').trim() || 'ANON');
+    const player = getPlayerNameSafe();
 
     const kind = gameoverScreen?.dataset?.endKind || 'GAMEOVER';
 
@@ -1346,7 +1406,7 @@ async function showLeaderboardAndLoad() {
     showScreen(difficultyScreen);
   });
 
-  if (diffBack) diffBack.addEventListener('click', () => { unlockAudioOnce(); playSfx('button'); showScreen(startScreen); });
+  if (diffBack) diffBack.addEventListener('click', () => { unlockAudioOnce(); playSfx('button'); clearPlayerName(); showScreen(startScreen); });
 
   function setRulesText(levelKey) {
     const goal = LEVELS[levelKey].streakGoal;
@@ -1375,8 +1435,41 @@ async function showLeaderboardAndLoad() {
   rulesOkBtn.addEventListener('click', async () => {
     unlockAudioOnce();
     playSfx('button');
+    // Ask for name once per session (until you exit to START)
+    if (!getPlayerNameSafe() || getPlayerNameSafe() === 'ANON' || !currentPlayerName) {
+      if (nameInputEl) nameInputEl.value = (currentPlayerName || '');
+      showScreen(nameScreen);
+      if (nameInputEl) { nameInputEl.focus(); nameInputEl.select?.(); }
+      return;
+    }
     await startRun();
   });
+
+  // NAME SCREEN actions
+  if (nameBackBtn && !nameBackBtn.dataset.bound) {
+    nameBackBtn.dataset.bound = '1';
+    bindSfxClick(nameBackBtn, 'button');
+    nameBackBtn.addEventListener('click', () => {
+      unlockAudioOnce();
+      playSfx('button');
+      showScreen(rulesScreen);
+    });
+  }
+  if (nameOkBtn && !nameOkBtn.dataset.bound) {
+    nameOkBtn.dataset.bound = '1';
+    bindSfxClick(nameOkBtn, 'button');
+    nameOkBtn.addEventListener('click', async () => {
+      unlockAudioOnce();
+      playSfx('button');
+      const n = (nameInputEl?.value || '').trim();
+      if (!n) {
+        if (nameInputEl) { nameInputEl.focus(); }
+        return;
+      }
+      setPlayerName(n);
+      await startRun();
+    });
+  }
 
   if (top10Btn) {
     top10Btn.addEventListener('click', async () => {
