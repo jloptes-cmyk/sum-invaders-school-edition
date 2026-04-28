@@ -1359,7 +1359,7 @@ async function showLeaderboardAndLoad() {
     startBtn.classList.remove('ready');
   }
 
-  disableStart();
+  enableStart();
   showScreen(startScreen);
 
   // Button SFX bindings (non-answer buttons)
@@ -1399,12 +1399,12 @@ async function showLeaderboardAndLoad() {
   });
 
   // IMPORTANT: Start must NOT start directly.
-  startBtn.addEventListener('click', () => {
-    unlockAudioOnce();
-    playSfx('button');
-    if (!coinInserted) return;
-    showScreen(difficultyScreen);
-  });
+ startBtn.addEventListener('click', () => {
+  unlockAudioOnce();
+  playSfx('button');
+  coinInserted = true;
+  showScreen(difficultyScreen);
+});
 
   if (diffBack) diffBack.addEventListener('click', () => { unlockAudioOnce(); playSfx('button'); clearPlayerName(); showScreen(startScreen); });
 
